@@ -6,7 +6,6 @@ import base64
 import hmac
 import logging
 from api.config import settings
-from app.exception import FeishuException
 
 logger = logging.getLogger(__name__)
 
@@ -31,14 +30,15 @@ class FeiShuPush():
             rj = r.json()
         except Exception as e:
             if r.status_code != 200:
-                raise FeishuException(f"推送消息异常: {r.text}") from e
+                raise
             return f"推送消息成功：{r.text}"
         if rj.get("StatusCode", -1) != 0:
-            raise FeishuException(rj.get("StatusMessage", "飞书消息推送错误"))
+            raise
 
         return rj
 
     def push_text(self, content):
+        # 推送文本
         params = {
             "msg_type": "text",
             "content": {
@@ -48,6 +48,7 @@ class FeiShuPush():
         self._real_request(params=params)
 
     def push_post(self, title, content):
+        # 推送富文本
         params = {
             "msg_type": "post",
             "content": {
@@ -60,21 +61,35 @@ class FeiShuPush():
                 }
             }
         }
-        self.real_request(params=params)
+        self._real_request(params=params)
 
     def push_image():
+        # 推送图片
         pass
 
     def push_share_chat():
+        # 推送群卡片
         pass
 
-    def push_interactive(self, content, at_userids=None, buttons=None, btn_same_line=True):
+    def push_interactive(self):
         params = {
             "msg_type": "interactive",
             "card": {
                 "config": {
-                    "wide_screen_mode": True,
-                    "enable_forward": True
+                    "update_multi": True,  # 是否设置未共享卡片
+                    "enable_forward": False  # 是否允许被转发
+                },
+                "header": {
+                    "title": {
+                        "tag": "plain_text",  # 标题只支持文本类型
+                        "content": "标题",
+                        "i18n": {
+                            "zh_cn": "中文文本",
+                            "en_us": "English text",
+                            "ja_jp": "日本語文案"
+                        }  # content，i18n二选一 i18n支持多国文本
+                    },
+                    "template": "red"  # 主题颜色 red,green,orange,grey
                 },
                 "elements": [
                     {
@@ -82,25 +97,15 @@ class FeiShuPush():
                         "fields": [{
                             "text": {
                                 "tag": "lark_md",
-                                "content": content
+                                "content": "yayya"
                             }
                         }],
                     }
                 ]
             }
         }
-        if at_userids:
-            for user_id in at_userids:
-                params["card"]["elements"].append(
-                    {"tag": "at", "user_id": user_id})
-        if buttons and btn_same_line:
-            params["card"]["elements"].append(
-                {"tag": "action", "layout": "bisected", "actions": buttons})
-        elif buttons:
-            for button in buttons:
-                params["card"]["elements"].append(
-                    {"tag": "action", "layout": "bisected", "actions": [button]})
-        self.real_request(params=params)
+
+        self._real_request(params=params)
 
 
-feishu_push = FeiShuPush(settings.ROBOT_WEBHOOK)
+customize_robot = FeiShuPush(settings.ROBOT_WEBHOOK)
